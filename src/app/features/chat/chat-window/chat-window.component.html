@@ -1,0 +1,53 @@
+<header class="head">
+  <strong>Помощник Вышки</strong>
+  <button (click)="close.emit()" aria-label="Закрыть">✕</button>
+</header>
+
+<main class="body">
+  @for (m of state.state().history; track m.id) {
+    <app-message-bubble [role]="m.role" [text]="m.text"></app-message-bubble>
+  }
+
+  @if (loading()) {
+    <app-typing-indicator></app-typing-indicator>
+  }
+
+  @if (phase === 'showCategory') {
+    <section>
+      <app-button-list
+        [options]="categoryOptions"
+        (pick)="pickSubcategory($event)">
+      </app-button-list>
+    </section>
+  }
+
+  @if (phase === 'rate') {
+    <section>
+      <div class="rate">
+        <button type="button" (click)="rateYes()">Да, удовлетворен</button>
+        <button type="button" (click)="rateNo()">Нет, не удовлетворен</button>
+      </div>
+
+      @if (rateOptions) {
+        <app-button-list
+          [options]="rateOptions"
+          (pick)="pickRateAction($event)">
+        </app-button-list>
+      }
+    </section>
+  }
+</main>
+
+<footer class="foot">
+  @if (phase === 'awaitQuestion') {
+    <form (ngSubmit)="submitQuestion()">
+      <input
+        name="q"
+        [(ngModel)]="input"
+        maxlength="2000"
+        placeholder="Опиши свой вопрос…"
+        autocomplete="off" />
+      <button type="submit" [disabled]="!input.trim()">Отправить</button>
+    </form>
+  }
+</footer>

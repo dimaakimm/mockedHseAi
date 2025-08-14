@@ -1,0 +1,7 @@
+<button class="fab" (click)="toggle()" aria-label="Открыть чат">💬</button>
+
+@if (open) {
+  <div class="popup">
+    <app-chat-window (close)="toggle()"></app-chat-window>
+  </div>
+}
