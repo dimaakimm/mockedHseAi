@@ -2,5 +2,9 @@
 * { box-sizing: border-box; }
 body { margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; background: #f9fafb; color: #111827; }
 button { cursor: pointer;}
-
+.app-root{
+  display: flex;
+  width: 100vw;
+  height: 100vh;
+}
 

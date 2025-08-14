@@ -6,6 +6,7 @@ import { ChatPopupComponent } from '../../features/chat/chat-popup/chat-popup.co
   standalone: true,
   imports: [ChatPopupComponent],
   templateUrl: './home.component.html',
+  styleUrls: ['./home.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class HomeComponent {}
