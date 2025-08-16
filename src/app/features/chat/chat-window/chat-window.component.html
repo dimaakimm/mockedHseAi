@@ -1,6 +1,6 @@
 <header class="head">
   <strong>Помощник Вышки</strong>
-  <button (click)="close.emit()" aria-label="Закрыть">✕</button>
+  <app-button (click)="close.emit()" aria-label="Закрыть">✕</app-button>
 </header>
 
 <main class="body">
@@ -47,7 +47,7 @@
         maxlength="2000"
         placeholder="Опиши свой вопрос…"
         autocomplete="off" />
-      <button type="submit" [disabled]="!input.trim()">Отправить</button>
+      <app-button type="submit" [disabled]="!input.trim()">Отправить!</app-button>
     </form>
   }
 </footer>

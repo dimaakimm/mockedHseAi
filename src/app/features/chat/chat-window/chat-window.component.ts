@@ -17,11 +17,18 @@ import { stripHtml } from '../../../core/utils/sanitize';
 import { MessageBubbleComponent } from '../../../shared/components/message-bubble/message-bubble.component';
 import { ButtonListComponent } from '../../../shared/components/button-list/button-list.component';
 import { AiRequest } from '../../../core/models/dto';
+import { ButtonComponent } from '../../../shared/components/button/button.component';
 
 @Component({
   selector: 'app-chat-window',
   standalone: true,
-  imports: [FormsModule, MessageBubbleComponent, TypingIndicatorComponent, ButtonListComponent],
+  imports: [
+    FormsModule,
+    MessageBubbleComponent,
+    TypingIndicatorComponent,
+    ButtonListComponent,
+    ButtonComponent,
+  ],
   templateUrl: './chat-window.component.html',
   styleUrls: ['./chat-window.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush,

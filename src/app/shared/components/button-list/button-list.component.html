@@ -1,3 +1,5 @@
 <div class="list">
-  <button type="button" *ngFor="let o of options; trackBy: track" (click)="pick.emit(o.id)">{{ o.title }}</button>
+  @for (o of options; track o.id) {
+    <button type="button" (click)="pick.emit(o.id)">{{ o.title }}</button>
+  }
 </div>

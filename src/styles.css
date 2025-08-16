@@ -6,5 +6,16 @@ button { cursor: pointer;}
   display: flex;
   width: 100vw;
   height: 100vh;
+  font-family: 'HSE Sans', system-ui, sans-serif;
+  line-height: 1.2;
+  font-weight: 400;
 }
 
+@font-face {
+  font-family: 'HSE Sans';
+  src: url('/HSESans-Regular.otf') format('opentype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+К

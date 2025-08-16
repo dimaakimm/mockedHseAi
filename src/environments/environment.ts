@@ -1,11 +1,11 @@
 export const environment = {
   production: false,
-  apiBaseUrl: 'https://api.example.com',
-  classifierEndpoint: '/ml/classify',
+  apiBaseUrl: 'https://platform.stratpro.hse.ru/pu-vleviczkaya-pa-classifier',
+  classifierEndpoint: '/classifier/predict',
   aiEndpoint: '/ml/generate',
   request: {
     timeoutMs: 15000,
     maxRetries: 2,
-    baseRetryDelayMs: 300
+    baseRetryDelayMs: 300,
   },
 };
