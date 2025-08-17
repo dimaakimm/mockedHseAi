@@ -3,6 +3,7 @@ import { InjectionToken } from '@angular/core';
 export interface ApiConfigToken {
   baseUrl: string;
   classifierEndpoint: string;
+  authToken: string;
   aiEndpoint: string;
   timeoutMs: number;
   maxRetries: number;

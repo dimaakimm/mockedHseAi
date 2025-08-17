@@ -12,7 +12,7 @@ export class ApiService {
     return this.http.post<T>(url, body, {
       headers: {
         'Content-Type': 'application/json',
-        Authorization: 'Basic ZGV2ZWxvcGVyOmExNTU2MmViYjNjOTTETkU=',
+        Authorization: this.cfg.authToken,
       },
       ...options,
     });

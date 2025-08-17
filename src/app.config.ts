@@ -20,6 +20,7 @@ export const appConfig: ApplicationConfig = {
       useValue: {
         baseUrl: environment.apiBaseUrl,
         classifierEndpoint: environment.classifierEndpoint,
+        authToken: environment.authToken,
         aiEndpoint: environment.aiEndpoint,
         timeoutMs: environment.request.timeoutMs,
         maxRetries: environment.request.maxRetries,
