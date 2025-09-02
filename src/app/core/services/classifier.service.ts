@@ -3,7 +3,7 @@ import { ApiService } from './api.service';
 import { API_CONFIG } from '../tokens/api-config.token';
 import { ClassifierRequest, ClassifierResponse } from '../models/dto';
 import { retry } from 'rxjs/operators';
-import { timer } from 'rxjs';
+import { throwError, timer } from 'rxjs';
 import { expBackoffDelay } from '../utils/backoff';
 
 @Injectable({ providedIn: 'root' })

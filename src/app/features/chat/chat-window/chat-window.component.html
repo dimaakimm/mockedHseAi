@@ -3,7 +3,7 @@
   <app-button (click)="close.emit()" aria-label="Закрыть">✕</app-button>
 </header>
 
-<main class="body">
+<main class="body" #chatContainer>
   @for (m of state.state().history; track m.id) {
     <app-message-bubble [role]="m.role" [text]="m.text"></app-message-bubble>
   }

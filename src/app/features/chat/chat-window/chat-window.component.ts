@@ -7,6 +7,10 @@ import {
   inject,
   signal,
   effect,
+  ViewChild,
+  ElementRef,
+  SimpleChanges,
+  ChangeDetectorRef,
 } from '@angular/core';
 import { ChatStateService } from '../chat-state-service';
 import { TypingIndicatorComponent } from '../../../shared/components/typing-indicator/typing-indicator.component';
@@ -35,6 +39,7 @@ import { ButtonComponent } from '../../../shared/components/button/button.compon
 })
 export class ChatWindowComponent {
   @Output() close = new EventEmitter<void>();
+  @ViewChild('chatContainer') private chatContainerRef: ElementRef | undefined;
 
   public state = inject(ChatStateService);
   public classifier = inject(ClassifierService);
@@ -48,7 +53,6 @@ export class ChatWindowComponent {
     'greet';
 
   categoriesMap: Record<string, { id: string; title: string }[]> = {
-    // Маппинг подкатегорий по категориям, заполняется под ваш домен
     Admissions: [
       { id: 'docs', title: 'Документы' },
       { id: 'deadlines', title: 'Сроки' },
@@ -60,12 +64,30 @@ export class ChatWindowComponent {
   };
 
   ngOnInit() {
-    // приветствие
-    this.state.pushMessage(
-      'bot',
-      'Я бот, созданный для помощи по учебным процессам Вышки! Какой у тебя вопрос?',
-    );
+    const history = this.state.state().history;
+    const lastMessage = history[history.length - 1];
+    if (
+      !lastMessage ||
+      lastMessage.text !==
+        'Я бот, созданный для помощи по учебным процессам Вышки! Какой у тебя вопрос?' ||
+      lastMessage.role !== 'bot'
+    ) {
+      this.state.pushMessage(
+        'bot',
+        'Я бот, созданный для помощи по учебным процессам Вышки! Какой у тебя вопрос?',
+      );
+    }
     this.phase = 'awaitQuestion';
+  }
+
+  constructor(private cdRef: ChangeDetectorRef) {}
+
+  ngDoCheck() {
+    const history = this.state.state().history;
+    if (history.length > 0) {
+      this.cdRef.detectChanges();
+      this.scrollToBottom();
+    }
   }
 
   submitQuestion() {
@@ -87,6 +109,9 @@ export class ChatWindowComponent {
         );
         this.loading.set(false);
         this.phase = 'showCategory';
+        setTimeout(() => {
+          this.scrollToBottom();
+        }, 100);
       },
       error: () => {
         this.loading.set(false);
@@ -106,9 +131,12 @@ export class ChatWindowComponent {
 
   askAI() {
     const s = this.state.state();
+    const questionWithContext = [...this.state.questionHistory, s.question].join(' ').trim(); // Объединяем текущий вопрос и все уточнения
+    console.log('Отправляемый вопрос:', questionWithContext);
+
     const payload: AiRequest = {
       inputs: [
-        { name: 'question', datatype: 'str', data: s.question, shape: 0 },
+        { name: 'question', datatype: 'str', data: questionWithContext, shape: 0 }, // Отправляем объединённый вопрос с контекстом
         { name: 'question_filters', datatype: 'str', data: JSON.stringify([s.category]), shape: 0 },
         { name: 'user_filters', datatype: 'str', data: JSON.stringify([]), shape: 0 },
         { name: 'campus_filters', datatype: 'str', data: JSON.stringify([]), shape: 0 },
@@ -122,7 +150,6 @@ export class ChatWindowComponent {
 
     this.ai.ask(payload).subscribe({
       next: (res) => {
-        // удалим индикатор "обрабатывает" из истории
         const history = this.state
           .state()
           .history.filter((m) => m.text !== 'ИИ-модель обрабатывает запрос…');
@@ -131,6 +158,9 @@ export class ChatWindowComponent {
         this.state.pushMessage('bot', answer + '\n\nУдовлетворен(а) ли ты полученным ответом?');
         this.phase = 'rate';
         this.loading.set(false);
+        setTimeout(() => {
+          this.scrollToBottom();
+        }, 100);
       },
       error: () => {
         const history = this.state
@@ -160,18 +190,30 @@ export class ChatWindowComponent {
 
   pickRateAction(id: string) {
     if (id === 'clarify') {
+      // Добавляем уточнение в историю
       this.state.pushMessage('bot', 'Напиши уточнение к вопросу.');
       this.phase = 'awaitQuestion';
+      // Здесь добавляем новый уточняющий вопрос к истории
+      this.state.questionHistory.push(this.state.state().question); // сохраняем вопрос для дальнейшей обработки
     } else {
       this.state.pushMessage('bot', 'Спасибо за оценку');
       setTimeout(() => this.restart(), 800);
     }
-    this.rateOptions = null; // очистка
+    this.rateOptions = null;
+  }
+
+  private scrollToBottom() {
+    if (this.chatContainerRef) {
+      const container = this.chatContainerRef.nativeElement;
+      container.scrollTop = container.scrollHeight;
+    }
   }
 
   restart() {
     this.state.reset();
+    this.state.questionHistory = [];
     this.phase = 'greet';
+    this.rateOptions = null;
     this.ngOnInit();
   }
 }
