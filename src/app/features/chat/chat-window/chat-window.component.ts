@@ -1,16 +1,12 @@
 import {
   Component,
   ChangeDetectionStrategy,
-  Input,
   Output,
   EventEmitter,
   inject,
   signal,
-  effect,
   ViewChild,
   ElementRef,
-  SimpleChanges,
-  ChangeDetectorRef,
 } from '@angular/core';
 import { ChatStateService } from '../chat-state-service';
 import { TypingIndicatorComponent } from '../../../shared/components/typing-indicator/typing-indicator.component';
@@ -64,14 +60,8 @@ export class ChatWindowComponent {
   };
 
   ngOnInit() {
-    const history = this.state.state().history;
-    const lastMessage = history[history.length - 1];
-    if (
-      !lastMessage ||
-      lastMessage.text !==
-        'Я бот, созданный для помощи по учебным процессам Вышки! Какой у тебя вопрос?' ||
-      lastMessage.role !== 'bot'
-    ) {
+    // Приветствие только если история пуста
+    if (this.state.state().history.length === 0) {
       this.state.pushMessage(
         'bot',
         'Я бот, созданный для помощи по учебным процессам Вышки! Какой у тебя вопрос?',
@@ -80,23 +70,17 @@ export class ChatWindowComponent {
     this.phase = 'awaitQuestion';
   }
 
-  constructor(private cdRef: ChangeDetectorRef) {}
-
-  ngDoCheck() {
-    const history = this.state.state().history;
-    if (history.length > 0) {
-      this.cdRef.detectChanges();
-      this.scrollToBottom();
-    }
-  }
-
   submitQuestion() {
     const q = stripHtml(this.input).slice(0, 2000);
     if (!q) return;
-    this.state.setQuestion(q);
+
     this.state.pushMessage('user', q);
+    this.state.setQuestion(q);
     this.input = '';
     this.loading.set(true);
+
+    // Логируем вопрос перед отправкой на бэкенд
+    console.log('Отправляемый вопрос на классификатор:', q);
 
     this.classifier.classify(q).subscribe({
       next: (res) => {
@@ -109,14 +93,13 @@ export class ChatWindowComponent {
         );
         this.loading.set(false);
         this.phase = 'showCategory';
-        setTimeout(() => {
-          this.scrollToBottom();
-        }, 100);
+        this.scrollToBottom();
       },
       error: () => {
         this.loading.set(false);
         this.state.pushMessage('bot', 'Не удалось определить категорию. Попробуешь ещё раз?');
         this.phase = 'awaitQuestion';
+        this.scrollToBottom();
       },
     });
   }
@@ -126,17 +109,19 @@ export class ChatWindowComponent {
     const cat = this.state.state().category!;
     const sub = (this.categoriesMap[cat] || []).find((x) => x.id === id)?.title || id;
     this.state.pushMessage('bot', `Категория твоего вопроса: ${cat}. Подкатегория: ${sub}.`);
+    this.phase = 'awaitAI';
+    this.scrollToBottom();
     this.askAI();
   }
 
   askAI() {
     const s = this.state.state();
-    const questionWithContext = [...this.state.questionHistory, s.question].join(' ').trim(); // Объединяем текущий вопрос и все уточнения
-    console.log('Отправляемый вопрос:', questionWithContext);
+    const questionWithContext = [...this.state.questionHistory, s.question].join(' ').trim();
+    console.log('Отправляемый вопрос на ИИ:', questionWithContext);
 
     const payload: AiRequest = {
       inputs: [
-        { name: 'question', datatype: 'str', data: questionWithContext, shape: 0 }, // Отправляем объединённый вопрос с контекстом
+        { name: 'question', datatype: 'str', data: questionWithContext, shape: 0 },
         { name: 'question_filters', datatype: 'str', data: JSON.stringify([s.category]), shape: 0 },
         { name: 'user_filters', datatype: 'str', data: JSON.stringify([]), shape: 0 },
         { name: 'campus_filters', datatype: 'str', data: JSON.stringify([]), shape: 0 },
@@ -144,12 +129,12 @@ export class ChatWindowComponent {
       ],
     };
 
-    this.loading.set(true);
-    this.phase = 'awaitAI';
     this.state.pushMessage('bot', 'ИИ-модель обрабатывает запрос…');
+    this.loading.set(true);
 
     this.ai.ask(payload).subscribe({
       next: (res) => {
+        // Убираем индикатор "обрабатывает"
         const history = this.state
           .state()
           .history.filter((m) => m.text !== 'ИИ-модель обрабатывает запрос…');
@@ -158,9 +143,7 @@ export class ChatWindowComponent {
         this.state.pushMessage('bot', answer + '\n\nУдовлетворен(а) ли ты полученным ответом?');
         this.phase = 'rate';
         this.loading.set(false);
-        setTimeout(() => {
-          this.scrollToBottom();
-        }, 100);
+        this.scrollToBottom();
       },
       error: () => {
         const history = this.state
@@ -168,8 +151,9 @@ export class ChatWindowComponent {
           .history.filter((m) => m.text !== 'ИИ-модель обрабатывает запрос…');
         this.state.state.set({ ...this.state.state(), history });
         this.state.pushMessage('bot', 'Произошла ошибка при получении ответа. Попробуешь ещё раз?');
-        this.loading.set(false);
         this.phase = 'awaitQuestion';
+        this.loading.set(false);
+        this.scrollToBottom();
       },
     });
   }
@@ -177,6 +161,7 @@ export class ChatWindowComponent {
   rateYes() {
     this.state.setSatisfaction(true);
     this.state.pushMessage('bot', 'Спасибо за оценку');
+    this.scrollToBottom();
     setTimeout(() => this.restart(), 800);
   }
 
@@ -186,27 +171,21 @@ export class ChatWindowComponent {
       { id: 'clarify', title: 'Уточнить текущий вопрос' },
       { id: 'new', title: 'Задать новый вопрос' },
     ];
+    this.scrollToBottom();
   }
 
   pickRateAction(id: string) {
     if (id === 'clarify') {
-      // Добавляем уточнение в историю
       this.state.pushMessage('bot', 'Напиши уточнение к вопросу.');
       this.phase = 'awaitQuestion';
-      // Здесь добавляем новый уточняющий вопрос к истории
-      this.state.questionHistory.push(this.state.state().question); // сохраняем вопрос для дальнейшей обработки
+      // Сохраняем текущий вопрос в историю для контекста
+      this.state.questionHistory.push(this.state.state().question);
     } else {
       this.state.pushMessage('bot', 'Спасибо за оценку');
       setTimeout(() => this.restart(), 800);
     }
     this.rateOptions = null;
-  }
-
-  private scrollToBottom() {
-    if (this.chatContainerRef) {
-      const container = this.chatContainerRef.nativeElement;
-      container.scrollTop = container.scrollHeight;
-    }
+    this.scrollToBottom();
   }
 
   restart() {
@@ -215,5 +194,14 @@ export class ChatWindowComponent {
     this.phase = 'greet';
     this.rateOptions = null;
     this.ngOnInit();
+  }
+
+  private scrollToBottom() {
+    if (this.chatContainerRef) {
+      const container = this.chatContainerRef.nativeElement;
+      setTimeout(() => {
+        container.scrollTop = container.scrollHeight;
+      }, 0); // Отложенный вызов чтобы DOM успел обновиться
+    }
   }
 }
