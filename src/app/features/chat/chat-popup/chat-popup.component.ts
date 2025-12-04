@@ -5,12 +5,12 @@ import { UserProfile } from '../../../models/user-profile.model';
 import { AiApiService, PredictResult } from '../../../services/ai-api.service';
 
 type ChatStage =
-  | 'askQuestion' // ждём первый вопрос
-  | 'chooseCategory' // пользователь выбирает раздел
-  | 'waitingModel' // ждём ответ ИИ
-  | 'rateAnswer' // да/нет по ответу
-  | 'afterNegative' // уточнить / новый вопрос
-  | 'clarifyQuestion'; // ждём уточнение к текущему вопросу
+  | 'askQuestion'
+  | 'chooseCategory'
+  | 'waitingModel'
+  | 'rateAnswer'
+  | 'afterNegative'
+  | 'clarifyQuestion';
 
 type ChatRole = 'bot' | 'user';
 
@@ -29,24 +29,22 @@ interface ChatMessage {
   styleUrl: './chat-popup.component.scss',
 })
 export class ChatPopupComponent implements OnInit {
-  /** Текущий профиль пользователя — нужен для user_filters и campus_filters */
+  /** Профиль пользователя (level, campus и т.п.) */
   @Input({ required: true }) userProfile!: UserProfile;
 
-  /** Сообщаем родителю об изменении профиля */
+  /** Сообщаем родителю, что профиль обновлён */
   @Output() userProfileChange = new EventEmitter<UserProfile>();
 
-  /** Ссылка на форму обратной связи (если нужно открыть отдельную форму) */
+  /** Ссылка на форму обратной связи (если нужно открыть внешнюю форму) */
   @Input() feedbackUrl?: string;
-
-  /** Событие "обратная связь" – если родитель захочет сам открыть модалку/страницу */
   @Output() feedbackClick = new EventEmitter<void>();
 
   isOpen = false;
 
-  // Режим отображения внутри попапа
+  /** Текущий режим внутри попапа: чат или форма профиля */
   viewMode: 'chat' | 'profile' = 'chat';
 
-  // Черновик профиля для формы
+  /** Черновик профиля для формы редактирования */
   userProfileDraft: UserProfile | null = null;
 
   messages: ChatMessage[] = [];
@@ -57,16 +55,14 @@ export class ChatPopupComponent implements OnInit {
 
   currentInput = '';
 
-  // данные для логики
   currentQuestion = '';
   currentCategory = '';
   currentSubcategory = '';
   availableSections: string[] = [];
 
-  // "сырые" данные классификатора, которые затем передаются в predict
+  /** "сырые" данные классификатора (что вернул AiApiService.classify) */
   private questionFiltersRaw: any | null = null;
 
-  // маппинг категория -> список разделов
   private readonly categorySections: Record<string, string[]> = {
     Обучение: ['Учебный план', 'Расписание', 'Сессия и экзамены', 'Практики и стажировки'],
     Поступление: ['Приёмная комиссия', 'Документы', 'Конкурс и баллы'],
@@ -131,7 +127,7 @@ export class ChatPopupComponent implements OnInit {
     );
   }
 
-  // ---------- работа с сообщениями ----------
+  // ---------- сообщения ----------
 
   private addBotMessage(text: string): void {
     this.messages.push({
@@ -156,7 +152,7 @@ export class ChatPopupComponent implements OnInit {
     return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   }
 
-  // ---------- отправка формы ввода ----------
+  // ---------- отправка текста ----------
 
   onSubmit(): void {
     const value = this.currentInput.trim();
@@ -173,30 +169,24 @@ export class ChatPopupComponent implements OnInit {
     this.currentInput = '';
   }
 
-  // 1.1 новый вопрос
   private handleNewQuestion(question: string): void {
     this.addUserMessage(question);
     this.currentQuestion = question;
-
     this.callClassifier(question);
   }
 
-  // 7.1 уточнение
   private handleClarification(clarification: string): void {
     this.addUserMessage(clarification);
-
     this.currentQuestion = this.currentQuestion + '\n\nУточнение пользователя: ' + clarification;
-
     this.callModel();
   }
 
-  // ---------- classifier через AiApiService (п.1.2–2) ----------
+  // ---------- classifier (п.1.2–2) через AiApiService ----------
 
   private callClassifier(question: string): void {
     this.stage = 'chooseCategory';
 
     this.aiApi.classify(question).subscribe((res) => {
-      // res может быть null — тогда fallback "Другое"
       this.questionFiltersRaw = res;
 
       let category = 'Другое';
@@ -216,11 +206,11 @@ export class ChatPopupComponent implements OnInit {
     });
   }
 
-  // 2.1 выбор раздела
+  // ---------- выбор подкатегории (п.2) ----------
+
   onSectionSelect(section: string): void {
     this.currentSubcategory = section;
 
-    // 2.2 подтверждение выбора
     this.addBotMessage(
       `Категория твоего вопроса: ${this.currentCategory}. Подкатегория: ${this.currentSubcategory}.`,
     );
@@ -228,7 +218,7 @@ export class ChatPopupComponent implements OnInit {
     this.callModel();
   }
 
-  // ---------- RAG / predict через AiApiService (п.3–5) ----------
+  // ---------- запрос к ИИ (п.3–5) ----------
 
   private callModel(): void {
     if (!this.userProfile) {
@@ -248,13 +238,12 @@ export class ChatPopupComponent implements OnInit {
         question: this.currentQuestion,
         questionFilters: this.questionFiltersRaw ?? {},
         userProfile: this.userProfile,
-        chatHistory: [], // пока пустой, AiApiService отправляет '{}'
+        chatHistory: [],
       })
       .subscribe((res: PredictResult) => {
         this.isWaitingForModel = false;
 
         const answerText = res.answer ?? 'Кажется, ответ не получен от ИИ-модели.';
-
         const fullText = answerText + '\n\nУдовлетворен(а) ли ты полученным ответом?';
 
         this.addBotMessage(fullText);
@@ -287,22 +276,18 @@ export class ChatPopupComponent implements OnInit {
     this.toStartState();
   }
 
-  // ---------- режим редактирования профиля внутри попапа ----------
+  // ---------- режим редактирования профиля ----------
 
-  /** Открыть форму редактирования параметров пользователя */
   openProfileView(): void {
     this.viewMode = 'profile';
-    // делаем копию текущего профиля, чтобы править в черновике
     this.userProfileDraft = { ...(this.userProfile ?? ({} as UserProfile)) };
   }
 
-  /** Нажатие "Вернуться к чату" / отмена */
   onCancelProfileEdit(): void {
     this.viewMode = 'chat';
     this.userProfileDraft = null;
   }
 
-  /** Сохранить изменения профиля */
   onSaveProfile(): void {
     if (!this.userProfileDraft) return;
 

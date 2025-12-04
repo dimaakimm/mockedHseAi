@@ -13,11 +13,7 @@ import { ChatPopupComponent } from './features/chat/chat-popup/chat-popup.compon
     <router-outlet></router-outlet>
 
     <!-- попап-чат прикручен к корню, живёт поверх всех страниц -->
-    <app-chat-popup
-      [userProfile]="userProfile"
-      [feedbackUrl]="'/feedback'"
-      [editUserUrl]="'/user-profile'"
-    ></app-chat-popup>
+    <app-chat-popup [userProfile]="userProfile" [feedbackUrl]="'/feedback'"></app-chat-popup>
   `,
 })
 export class AppComponent {

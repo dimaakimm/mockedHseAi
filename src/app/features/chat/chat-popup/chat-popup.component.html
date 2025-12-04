@@ -50,7 +50,7 @@
         </div>
       </header>
 
-      <!-- Тело чата / профиль -->
+      <!-- Тело попапа: чат / профиль -->
       <main class="chat-popup__body">
         <!-- Режим: чат -->
         @if (viewMode === 'chat') {
@@ -237,7 +237,7 @@
         }
       </main>
 
-      <!-- Футер: только для режима чата -->
+      <!-- Футер -->
       <footer class="chat-popup__footer">
         @if (viewMode === 'chat') {
           <form class="chat-input" (ngSubmit)="onSubmit()" autocomplete="off">
