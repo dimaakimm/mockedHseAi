@@ -1,37 +1,29 @@
-import { Component, OnInit } from '@angular/core';
-import { CommonModule } from '@angular/common';
-import { UserProfile } from './models/user-profile.model';
-import { UserProfileService } from './services/user-profile.service';
-import { UserProfileFormComponent } from './components/user-profile-form/user-profile-form.component';
-import { AiApiService } from './services/ai-api.service';
-import { ChatWindowComponent } from './features/chat/chat-window/chat-window.component';
+// app.component.ts
+import { Component } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
+import { UserProfile } from './models/user-profile.model';
+import { ChatPopupComponent } from './features/chat/chat-popup/chat-popup.component';
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  templateUrl: './app.component.html',
-  styleUrls: ['./app.component.scss'],
-  imports: [CommonModule, UserProfileFormComponent, ChatWindowComponent, RouterOutlet],
+  imports: [RouterOutlet, ChatPopupComponent],
+  template: `
+    <!-- основной контент приложения -->
+    <router-outlet></router-outlet>
+
+    <!-- попап-чат прикручен к корню, живёт поверх всех страниц -->
+    <app-chat-popup
+      [userProfile]="userProfile"
+      [feedbackUrl]="'/feedback'"
+      [editUserUrl]="'/user-profile'"
+    ></app-chat-popup>
+  `,
 })
-export class AppComponent implements OnInit {
-  showProfile = false;
-  userProfile: UserProfile | null = null;
-
-  constructor(private userProfileService: UserProfileService) {}
-
-  ngOnInit(): void {
-    this.userProfileService.profile$.subscribe((profile) => {
-      this.userProfile = profile;
-    });
-  }
-
-  toggleProfile(): void {
-    this.showProfile = !this.showProfile;
-  }
-
-  onProfileSaved(profile: UserProfile): void {
-    // Профиль уже сохранён через сервис, но можно что-то ещё сделать
-    this.showProfile = false;
-  }
+export class AppComponent {
+  userProfile: UserProfile = {
+    // подставь реальные поля
+    level: 'бакалавриат',
+    campus: 'Москва',
+  } as UserProfile;
 }

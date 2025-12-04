@@ -1,54 +1,56 @@
-.fab {
-  position: fixed;
-  right: 24px;
-  bottom: 24px;
-  width: 56px;
-  height: 56px;
-  border-radius: 50%;
-  border: none;
-  cursor: pointer;
-  font-size: 24px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-  background: #0050b3;
-  color: #fff;
-}
-
-.popup {
-  position: fixed;
-  right: 24px;
-  bottom: 96px;
-  width: min(420px, 100vw - 32px);
-  max-height: 70vh;
+.chat-popup__profile {
   display: flex;
   flex-direction: column;
-  background: #fff;
-  border-radius: 16px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
-  overflow: hidden;
+  gap: 10px;
 }
 
-.popup-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 8px 12px;
-  background: #f5f5f5;
-  border-bottom: 1px solid #e5e5e5;
-}
-
-.popup-title {
+.chat-popup__profile-title {
+  margin: 0;
   font-size: 14px;
-  font-weight: 500;
+  font-weight: 600;
+  color: #0f172a;
 }
 
-.popup-close {
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  font-size: 18px;
+.chat-popup__profile-desc {
+  margin: 0;
+  font-size: 12px;
+  color: #64748b;
 }
 
-.popup-body {
-  flex: 1;
+.profile-form {
   display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.profile-form__row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.profile-form__label {
+  font-size: 12px;
+  color: #0f172a;
+}
+
+.profile-form__control {
+  border-radius: 10px;
+  border: 1px solid #cbd5e1;
+  padding: 6px 8px;
+  font-size: 13px;
+  background: #ffffff;
+}
+
+.profile-form__control:focus {
+  outline: none;
+  border-color: #0047bb;
+  box-shadow: 0 0 0 1px rgba(0, 71, 187, 0.15);
+}
+
+.profile-form__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 4px;
 }
