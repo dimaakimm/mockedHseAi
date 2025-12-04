@@ -1,8 +1,17 @@
 import { CommonModule } from '@angular/common';
-import { Component, EventEmitter, Input, OnInit, Output } from '@angular/core';
+import {
+  Component,
+  ElementRef,
+  EventEmitter,
+  Input,
+  OnInit,
+  Output,
+  ViewChild,
+} from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { UserProfile } from '../../../models/user-profile.model';
 import { AiApiService, PredictResult } from '../../../services/ai-api.service';
+const USER_PROFILE_STORAGE_KEY = 'hseChatUserProfile';
 
 type ChatStage =
   | 'askQuestion'
@@ -30,7 +39,11 @@ interface ChatMessage {
 })
 export class ChatPopupComponent implements OnInit {
   /** Профиль пользователя (level, campus и т.п.) */
-  @Input({ required: true }) userProfile!: UserProfile;
+  @ViewChild('messagesContainer')
+  messagesContainer?: ElementRef<HTMLDivElement>;
+  @Input({ required: true })
+  userProfile!: UserProfile;
+  nameError: string | null = null;
 
   /** Сообщаем родителю, что профиль обновлён */
   @Output() userProfileChange = new EventEmitter<UserProfile>();
@@ -73,9 +86,9 @@ export class ChatPopupComponent implements OnInit {
   constructor(private aiApi: AiApiService) {}
 
   ngOnInit(): void {
+    this.loadUserProfileFromStorage();
     this.toStartState();
   }
-
   // ---------- геттеры для шаблона ----------
 
   get inputPlaceholder(): string {
@@ -93,6 +106,25 @@ export class ChatPopupComponent implements OnInit {
       this.stage === 'rateAnswer' ||
       this.stage === 'afterNegative'
     );
+  }
+
+  private validateProfileDraft(): boolean {
+    this.nameError = null;
+
+    if (!this.userProfileDraft) {
+      return true;
+    }
+
+    const raw = this.userProfileDraft.name ?? '';
+    const name = raw.trim();
+
+    // Имя необязательное, но если его ввели — должно быть не короче 3 символов
+    if (name && name.length < 3) {
+      this.nameError = 'Имя должно содержать не менее 3 символов.';
+      return false;
+    }
+
+    return true;
   }
 
   // ---------- открытие / закрытие попапа ----------
@@ -136,6 +168,8 @@ export class ChatPopupComponent implements OnInit {
       text,
       timestamp: this.nowTime(),
     });
+
+    this.scheduleScrollToBottom();
   }
 
   private addUserMessage(text: string): void {
@@ -145,6 +179,8 @@ export class ChatPopupComponent implements OnInit {
       text,
       timestamp: this.nowTime(),
     });
+
+    this.scheduleScrollToBottom();
   }
 
   private nowTime(): string {
@@ -291,15 +327,29 @@ export class ChatPopupComponent implements OnInit {
   onSaveProfile(): void {
     if (!this.userProfileDraft) return;
 
+    // если валидация не пройдена — остаёмся в форме профиля
+    if (!this.validateProfileDraft()) {
+      return;
+    }
+
     this.userProfile = { ...this.userProfileDraft };
+
+    this.persistUserProfileToStorage();
     this.userProfileChange.emit(this.userProfile);
 
     this.viewMode = 'chat';
     this.userProfileDraft = null;
+    this.nameError = null;
 
     this.addBotMessage(
-      'Параметры пользователя обновлены. Можешь задать новый вопрос или уточнить текущий.',
+      'Параметры пользователя обновлены и сохранены. Можешь задать новый вопрос или уточнить текущий.',
     );
+  }
+
+  onNameChange(value: string): void {
+    if (!this.userProfileDraft) return;
+    this.userProfileDraft.name = value;
+    this.validateProfileDraft();
   }
 
   // ---------- обратная связь ----------
@@ -309,5 +359,46 @@ export class ChatPopupComponent implements OnInit {
       window.open(this.feedbackUrl, '_blank');
     }
     this.feedbackClick.emit();
+  }
+  private scheduleScrollToBottom(): void {
+    // даём Angular обновить DOM
+    setTimeout(() => this.scrollToBottom(), 0);
+  }
+
+  private scrollToBottom(): void {
+    if (!this.messagesContainer) return;
+    const el = this.messagesContainer.nativeElement;
+    el.scrollTop = el.scrollHeight;
+  }
+
+  private loadUserProfileFromStorage(): void {
+    if (typeof window === 'undefined') return;
+
+    try {
+      const raw = window.localStorage.getItem(USER_PROFILE_STORAGE_KEY);
+      if (!raw) return;
+
+      const parsed = JSON.parse(raw) as UserProfile;
+
+      // Если в @Input уже что-то пришло — аккуратно мержим
+      this.userProfile = {
+        ...(this.userProfile ?? ({} as UserProfile)),
+        ...parsed,
+      };
+    } catch (e) {
+      console.warn('Не удалось прочитать профиль из localStorage', e);
+    }
+  }
+
+  private persistUserProfileToStorage(): void {
+    if (typeof window === 'undefined') return;
+    if (!this.userProfile) return;
+
+    try {
+      const json = JSON.stringify(this.userProfile);
+      window.localStorage.setItem(USER_PROFILE_STORAGE_KEY, json);
+    } catch (e) {
+      console.warn('Не удалось сохранить профиль в localStorage', e);
+    }
   }
 }

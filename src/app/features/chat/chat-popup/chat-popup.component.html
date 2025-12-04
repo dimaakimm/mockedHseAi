@@ -13,48 +13,50 @@
   @if (isOpen) {
     <section class="chat-popup" aria-label="Чат-помощник ВШЭ">
       <!-- Шапка с кнопками -->
-      <header class="chat-popup__header">
-        <div class="chat-popup__title-block">
-          <div class="chat-popup__logo-circle">ВШЭ</div>
-          <div>
-            <h2 class="chat-popup__title">Помощник по учебным вопросам</h2>
-            <p class="chat-popup__subtitle">
-              Я бот, созданный для помощи по учебным процессам Вышки
-            </p>
+      @if (viewMode === 'chat') {
+        <header class="chat-popup__header">
+          <div class="chat-popup__title-block">
+            <div class="chat-popup__logo-circle">ВШЭ</div>
+            <div>
+              <h2 class="chat-popup__title">Помощник по учебным вопросам</h2>
+              <p class="chat-popup__subtitle">
+                Я бот, созданный для помощи по учебным процессам Вышки
+              </p>
+            </div>
           </div>
-        </div>
 
-        <div class="chat-popup__header-actions">
-          <button
-            type="button"
-            class="chat-popup__link"
-            (click)="onFeedbackClick()"
-          >
-            Обратная связь
-          </button>
-          <button
-            type="button"
-            class="chat-popup__link"
-            (click)="openProfileView()"
-          >
-            Изменить параметры пользователя
-          </button>
-          <button
-            type="button"
-            class="chat-popup__close"
-            (click)="close()"
-            aria-label="Закрыть чат"
-          >
-            ✕
-          </button>
-        </div>
-      </header>
+          <div class="chat-popup__header-actions">
+            <button
+              type="button"
+              class="chat-popup__link"
+              (click)="onFeedbackClick()"
+            >
+              Обратная связь
+            </button>
+            <button
+              type="button"
+              class="chat-popup__link"
+              (click)="openProfileView()"
+            >
+              Изменить параметры пользователя
+            </button>
+            <button
+              type="button"
+              class="chat-popup__close"
+              (click)="close()"
+              aria-label="Закрыть чат"
+            >
+              ✕
+            </button>
+          </div>
+        </header>
+      }
 
       <!-- Тело попапа: чат / профиль -->
       <main class="chat-popup__body">
         <!-- Режим: чат -->
         @if (viewMode === 'chat') {
-          <div class="chat-popup__messages">
+          <div #messagesContainer class="chat-popup__messages">
             @for (message of messages; track message.id) {
               <article
                 class="chat-message"
@@ -180,6 +182,28 @@
                 (ngSubmit)="onSaveProfile()"
                 autocomplete="off"
               >
+                <div class="profile-form__row">
+                  <label class="profile-form__label" for="profile-name">
+                    Имя (необязательно)
+                  </label>
+                  <input
+                    id="profile-name"
+                    class="profile-form__control"
+                    type="text"
+                    name="profileName"
+                    [(ngModel)]="userProfileDraft.name"
+                    (ngModelChange)="onNameChange($event)"
+                    placeholder="Как к тебе обращаться?"
+                  />
+
+                  @if (nameError) {
+                    <p class="profile-form__error">
+                      {{ nameError }}
+                    </p>
+                  }
+                </div>
+
+
                 <div class="profile-form__row">
                   <label class="profile-form__label" for="profile-level">
                     Уровень образования
