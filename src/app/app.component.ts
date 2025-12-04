@@ -1,25 +1,28 @@
-// app.component.ts
 import { Component } from '@angular/core';
-import { RouterOutlet } from '@angular/router';
-import { UserProfile } from './models/user-profile.model';
 import { ChatPopupComponent } from './features/chat/chat-popup/chat-popup.component';
+import { UserProfile } from './models/user-profile.model';
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [RouterOutlet, ChatPopupComponent],
-  template: `
-    <!-- основной контент приложения -->
-    <router-outlet></router-outlet>
-
-    <!-- попап-чат прикручен к корню, живёт поверх всех страниц -->
-    <app-chat-popup [userProfile]="userProfile" [feedbackUrl]="'/feedback'"></app-chat-popup>
-  `,
+  imports: [ChatPopupComponent],
+  templateUrl: './app.component.html',
+  styleUrl: './app.component.scss',
 })
 export class AppComponent {
+  // ✅ ЭТО тот самый userProfile, которого у тебя "Unresolved variable"
   userProfile: UserProfile = {
-    // подставь реальные поля
+    name: '',
     level: 'бакалавриат',
     campus: 'Москва',
-  } as UserProfile;
+  };
+
+  // ссылка на форму обратной связи (если нужна)
+  feedbackUrl = 'https://forms.yandex.ru/your-feedback-form/'; // поставь свою
+
+  // если захочешь ловить изменения профиля из чата
+  onUserProfileChange(profile: UserProfile): void {
+    this.userProfile = profile;
+    // здесь можно сохранить в localStorage и т.д.
+  }
 }
