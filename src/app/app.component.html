@@ -1,1 +1,22 @@
-<router-outlet />
+
+<div class="app-wrapper">
+  <div class="top-bar">
+    <button (click)="toggleProfile()">
+      {{ showProfile ? 'Вернуться к чату' : 'Настроить профиль абитуриента' }}
+    </button>
+  </div>
+
+  <div class="content">
+    <app-user-profile-form
+      *ngIf="showProfile"
+      (saved)="onProfileSaved($event)"
+    ></app-user-profile-form>
+
+    <app-chat
+      *ngIf="!showProfile"
+      [userProfile]="userProfile"
+    ></app-chat>
+  </div>
+</div>
+
+<!--<router-outlet />-->
