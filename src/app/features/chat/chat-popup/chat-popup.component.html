@@ -56,30 +56,46 @@
         <!-- Режим: чат -->
         @if (viewMode === 'chat') {
           <div #messagesContainer class="chat-popup__messages">
-            @for (message of messages; track message.id) {
+            @for (message of messages; track message.id; let i = $index) {
               <article
                 class="chat-message"
                 [class.chat-message--bot]="message.role === 'bot'"
                 [class.chat-message--user]="message.role === 'user'"
               >
+                <!-- Аватар только для сообщений бота -->
                 @if (message.role === 'bot') {
-                <div class="chat-message__avatar">
-                    <span class="chat-message__avatar-icon"><img src="/bot-icon.png" alt="HSE"></span>
-                </div>
+                  @if (i === 0 || messages[i - 1]?.role !== 'bot') {
+                    <!-- Первое сообщение в последовательности бота — нормальный аватар -->
+                    <div class="chat-message__avatar">
+            <span class="chat-message__avatar-icon">
+              <img src="/bot-icon.png" alt="HSE" />
+            </span>
+                    </div>
+                  } @else {
+                    <!-- Последующие сообщения бота — невидимый аватар-заглушка -->
+                    <div class="chat-message__avatar chat-message__avatar--spacer"></div>
+                  }
                 }
 
-
                 <div class="chat-message__content">
-                  <header class="chat-message__meta">
-                    <span class="chat-message__author">
-                      @if (message.role === 'bot') { Бот } @else { Ты }
-                    </span>
-                    @if (message.timestamp) {
-                      <span class="chat-message__time">
-                        {{ message.timestamp }}
-                      </span>
-                    }
-                  </header>
+                  <!-- Метаданные:
+                       - всегда для пользователя
+                       - только для первого сообщения бота в последовательности -->
+                  @if (
+                    message.role === 'user' ||
+                    (message.role === 'bot' && (i === 0 || messages[i - 1]?.role !== 'bot'))
+                    ) {
+                    <header class="chat-message__meta">
+            <span class="chat-message__author">
+              @if (message.role === 'bot') { Бот } @else { Ты }
+            </span>
+                      @if (message.timestamp) {
+                        <span class="chat-message__time">
+                {{ message.timestamp }}
+              </span>
+                      }
+                    </header>
+                  }
 
                   <p class="chat-message__bubble">
                     {{ message.text }}
@@ -95,6 +111,8 @@
               </div>
             }
           </div>
+
+
 
           <!-- Панель выбора категории, когда confidence = 0 -->
           @if (stage === 'chooseCategory') {
@@ -251,7 +269,11 @@
                   >
                     Вернуться к чату
                   </button>
-                  <button type="submit" class="primary-button">
+                  <button
+                    type="submit"
+                    class="primary-button"
+                    [disabled]="isProfileSaveDisabled"
+                  >
                     Сохранить
                   </button>
                 </div>
@@ -265,27 +287,35 @@
       <footer class="chat-popup__footer">
         @if (viewMode === 'chat') {
           <form class="chat-input" (ngSubmit)="onSubmit()" autocomplete="off">
-            <textarea
-              class="chat-input__field"
-              name="question"
-              [(ngModel)]="currentInput"
-              [placeholder]="inputPlaceholder"
-              [disabled]="isInputDisabled"
-              rows="1"
+      <textarea
+        class="chat-input__field"
+        name="question"
+        [(ngModel)]="currentInput"
+        [placeholder]="inputPlaceholder"
+        [disabled]="isInputDisabled"
+        rows="1"
+        (keydown)="onInputKeydown($event)"
             ></textarea>
             <button
               type="submit"
               class="chat-input__send"
               [disabled]="isInputDisabled || !currentInput.trim()"
             >
-              Отправить
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                <g>
+                  <path fill="none" d="M0 0h24v24H0z" />
+                  <path
+                    fill="currentColor"
+                    d="M1.946 9.315c-.522-.174-.527-.455.01-.634l19.087-6.362c.529-.176.832.12.684.638l-5.454 19.086c-.15.529-.455.547-.679.045L12 14l6-8-8 6-8.054-2.685z"
+                  />
+                </g>
+              </svg>
             </button>
           </form>
 
           @if (stage === 'askQuestion') {
             <p class="chat-popup__hint">
-              Сначала сформулируй вопрос — бот автоматически определит категорию
-              и подберёт нужный раздел.
+              Сначала сформулируй вопрос — бот автоматически определит категорию и подберёт нужный раздел.
             </p>
           }
 
@@ -298,11 +328,11 @@
 
         @if (viewMode === 'profile') {
           <p class="chat-popup__hint">
-            После изменения параметров задай новый вопрос или уточни текущий —
-            бот учтёт обновлённые данные.
+            После изменения параметров задай новый вопрос или уточни текущий — бот учтёт обновлённые данные.
           </p>
         }
       </footer>
+
     </section>
   }
 </div>

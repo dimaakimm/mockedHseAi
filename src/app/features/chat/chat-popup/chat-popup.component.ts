@@ -91,6 +91,8 @@ export class ChatPopupComponent implements OnInit {
   stage: ChatStage = 'askQuestion';
   isWaitingForModel = false;
 
+  isProfileSaveDisabled = false;
+
   currentInput = '';
 
   currentQuestion = '';
@@ -131,7 +133,8 @@ export class ChatPopupComponent implements OnInit {
     this.nameError = null;
 
     if (!this.userProfileDraft) {
-      return true;
+      this.isProfileSaveDisabled = true;
+      return false;
     }
 
     const raw = this.userProfileDraft.name ?? '';
@@ -140,10 +143,12 @@ export class ChatPopupComponent implements OnInit {
     // Имя необязательное, но если его ввели — должно быть не короче 3 символов
     if (name && name.length < 3) {
       this.nameError = 'Имя должно содержать не менее 3 символов.';
-      return false;
     }
 
-    return true;
+    // если есть любая ошибка — дизейблим кнопку
+    this.isProfileSaveDisabled = !!this.nameError;
+
+    return !this.nameError;
   }
 
   // ---------- открытие / закрытие попапа ----------
@@ -159,7 +164,7 @@ export class ChatPopupComponent implements OnInit {
     this.isOpen = false;
   }
 
-  // ---------- стартовое состояние (п.1) ----------
+  // ---------- стартовое состояние ----------
 
   private toStartState(): void {
     this.viewMode = 'chat';
@@ -203,6 +208,22 @@ export class ChatPopupComponent implements OnInit {
   private nowTime(): string {
     const d = new Date();
     return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  }
+
+  // ---------- универсальная обработка ошибок ручек ----------
+
+  private showErrorWithRating(): void {
+    const errorText =
+      'При получении ответа (классификатора/модели) произошла ошибка. ' +
+      'Пожалуйста, попробуйте еще раз или повторите позже.';
+
+    // сначала сообщение об ошибке
+    this.addBotMessage(errorText);
+    // потом отдельным сообщением — вопрос про оценку
+    this.addBotMessage('Удовлетворен(а) ли ты полученным ответом?');
+
+    this.stage = 'rateAnswer';
+    this.isWaitingForModel = false;
   }
 
   // ---------- отправка текста ----------
@@ -270,10 +291,7 @@ export class ChatPopupComponent implements OnInit {
         }
       },
       error: () => {
-        this.addBotMessage(
-          'Не получилось определить категорию вопроса. Попробуй задать его ещё раз чуть позже.',
-        );
-        this.stage = 'askQuestion';
+        this.showErrorWithRating();
       },
     });
   }
@@ -372,7 +390,7 @@ export class ChatPopupComponent implements OnInit {
     return { answer, links };
   }
 
-  // ---------- запрос к ИИ (RAG, п.3–5) ----------
+  // ---------- запрос к ИИ (RAG) ----------
 
   private callModel(): void {
     const { campus, level } = this.userProfile || {};
@@ -404,31 +422,40 @@ export class ChatPopupComponent implements OnInit {
 
           const { answer, links } = this.extractFinalAnswerFromResponse(res);
 
+          const normalized = (answer ?? '').trim();
+          const lower = normalized.toLowerCase();
+
+          // считаем ответ от бэка ошибочным
+          const isBackendError =
+            !normalized || lower.includes('http error') || lower.includes('network error');
+
+          if (isBackendError) {
+            this.showErrorWithRating();
+            return;
+          }
+
+          // 1) отдельное сообщение с ответом + "Подробнее"
           const parts: string[] = [];
-          parts.push((answer && answer.trim()) || 'Кажется, ответ не получен от ИИ-модели.');
+          parts.push(normalized);
 
           if (links.length) {
             parts.push('', 'Подробнее:', links.join(', '));
           }
 
-          parts.push('', 'Удовлетворен(а) ли ты полученным ответом?');
+          const answerBlock = parts.join('\n');
+          this.addBotMessage(answerBlock);
 
-          const fullText = parts.join('\n');
-
-          this.addBotMessage(fullText);
+          // 2) отдельное сообщение с вопросом про удовлетворённость
+          this.addBotMessage('Удовлетворен(а) ли ты полученным ответом?');
           this.stage = 'rateAnswer';
         },
         error: () => {
-          this.isWaitingForModel = false;
-          this.stage = 'askQuestion';
-          this.addBotMessage(
-            'Не получилось получить ответ от ИИ-модели. Попробуй задать вопрос ещё раз чуть позже.',
-          );
+          this.showErrorWithRating();
         },
       });
   }
 
-  // ---------- оценка ответа (п.6–7) ----------
+  // ---------- оценка ответа ----------
 
   onRate(isSatisfied: boolean): void {
     if (isSatisfied) {
@@ -491,6 +518,23 @@ export class ChatPopupComponent implements OnInit {
     if (!this.userProfileDraft) return;
     this.userProfileDraft.name = value;
     this.validateProfileDraft();
+  }
+
+  onInputKeydown(event: KeyboardEvent): void {
+    // Enter без модификаторов — отправка
+    if (
+      event.key === 'Enter' &&
+      !event.shiftKey &&
+      !event.ctrlKey &&
+      !event.altKey &&
+      !event.metaKey
+    ) {
+      event.preventDefault(); // не вставлять перенос строки
+
+      if (!this.isInputDisabled && this.currentInput.trim()) {
+        this.onSubmit();
+      }
+    }
   }
 
   // ---------- обратная связь ----------
