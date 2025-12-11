@@ -16,7 +16,6 @@
       @if (viewMode === 'chat') {
         <header class="chat-popup__header">
           <div class="chat-popup__title-block">
-            <div class="chat-popup__logo-circle">ВШЭ</div>
             <div>
               <h2 class="chat-popup__title">Помощник по учебным вопросам</h2>
               <p class="chat-popup__subtitle">
@@ -63,13 +62,12 @@
                 [class.chat-message--bot]="message.role === 'bot'"
                 [class.chat-message--user]="message.role === 'user'"
               >
+                @if (message.role === 'bot') {
                 <div class="chat-message__avatar">
-                  @if (message.role === 'bot') {
-                    <span class="chat-message__avatar-icon">🤖</span>
-                  } @else {
-                    <span class="chat-message__avatar-icon">👤</span>
-                  }
+                    <span class="chat-message__avatar-icon"><img src="/bot-icon.png" alt="HSE"></span>
                 </div>
+                }
+
 
                 <div class="chat-message__content">
                   <header class="chat-message__meta">

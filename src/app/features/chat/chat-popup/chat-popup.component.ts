@@ -10,7 +10,8 @@ import {
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { UserProfile } from '../../../models/user-profile.model';
-import { AiApiService, PredictResult } from '../../../services/ai-api.service';
+import { AiApiService } from '../../../services/ai-api.service';
+
 const USER_PROFILE_STORAGE_KEY = 'hseChatUserProfile';
 
 type ChatStage =
@@ -89,6 +90,7 @@ export class ChatPopupComponent implements OnInit {
     this.loadUserProfileFromStorage();
     this.toStartState();
   }
+
   // ---------- геттеры для шаблона ----------
 
   get inputPlaceholder(): string {
@@ -254,12 +256,82 @@ export class ChatPopupComponent implements OnInit {
     this.callModel();
   }
 
+  // ---------- парсинг FINAL ANSWER + ссылок ----------
+
+  private extractFinalAnswerFromResponse(response: any): {
+    answer: string | null;
+    links: string[];
+  } {
+    if (!response) {
+      return { answer: null, links: [] };
+    }
+
+    let raw: string | null = null;
+
+    // Вариант 1: пришёл сырой RAG-ответ с outputs (как в твоём примере)
+    if (Array.isArray(response.outputs)) {
+      const answerOutput = response.outputs.find((o: any) => o && o.name === 'answer');
+      if (answerOutput && answerOutput.data != null) {
+        raw = String(answerOutput.data);
+      }
+    }
+
+    // Вариант 2: сервис уже завернул ответ и положил строку в res.answer
+    if (!raw && typeof response.answer === 'string') {
+      raw = response.answer;
+    }
+
+    if (!raw) {
+      return { answer: null, links: [] };
+    }
+
+    return this.extractFinalAnswerFromString(raw);
+  }
+
+  private extractFinalAnswerFromString(raw: string): { answer: string; links: string[] } {
+    // Превратим "\n" в настоящие переносы строк
+    const unescaped = raw.replace(/\\n/g, '\n');
+
+    const prefix = 'FINAL ANSWER:';
+    let answer = '';
+
+    const idx = unescaped.indexOf(prefix);
+    if (idx !== -1) {
+      let rest = unescaped.slice(idx + prefix.length).trim();
+
+      // В твоём формате после ответа идёт "', ['https://...']"
+      const endMarker = "', [";
+      const endIdx = rest.indexOf(endMarker);
+      if (endIdx !== -1) {
+        rest = rest.slice(0, endIdx);
+      }
+
+      // На всякий случай уберём внешние одиночные кавычки
+      if (rest.startsWith("'") && rest.endsWith("'")) {
+        rest = rest.slice(1, -1);
+      }
+
+      answer = rest.trim();
+    } else {
+      // Фоллбек: если вдруг нет FINAL ANSWER, берём всю строку
+      answer = unescaped.trim();
+    }
+
+    // Вытаскиваем все URL-ы из того же текста
+    const urlRegex = /https?:\/\/[^\s'"]+/g;
+    const links = Array.from(new Set(unescaped.match(urlRegex) ?? []));
+
+    return { answer, links };
+  }
+
   // ---------- запрос к ИИ (п.3–5) ----------
 
   private callModel(): void {
-    if (!this.userProfile) {
+    // тут можешь оставить свою проверку профиля как было — я не трогаю
+    if (!(this.userProfile.campus && this.userProfile.level)) {
       this.addBotMessage(
-        'Не удалось получить данные о пользователе. Пожалуйста, заполни параметры пользователя и попробуй снова.',
+        'Не удалось получить данные о пользователе (кампус и уровень образования). ' +
+          'Пожалуйста, заполни параметры пользователя и попробуй снова.',
       );
       this.stage = 'askQuestion';
       this.isWaitingForModel = false;
@@ -276,14 +348,35 @@ export class ChatPopupComponent implements OnInit {
         userProfile: this.userProfile,
         chatHistory: [],
       })
-      .subscribe((res: PredictResult) => {
-        this.isWaitingForModel = false;
+      .subscribe({
+        next: (res: any) => {
+          this.isWaitingForModel = false;
 
-        const answerText = res.answer ?? 'Кажется, ответ не получен от ИИ-модели.';
-        const fullText = answerText + '\n\nУдовлетворен(а) ли ты полученным ответом?';
+          // Ключевая строка – вытащим FINAL ANSWER и ссылки из того, что реально пришло
+          const { answer, links } = this.extractFinalAnswerFromResponse(res);
 
-        this.addBotMessage(fullText);
-        this.stage = 'rateAnswer';
+          const parts: string[] = [];
+
+          parts.push((answer && answer.trim()) || 'Кажется, ответ не получен от ИИ-модели.');
+
+          if (links.length) {
+            parts.push('', 'Подробнее:', links.join(', '));
+          }
+
+          parts.push('', 'Удовлетворен(а) ли ты полученным ответом?');
+
+          const fullText = parts.join('\n');
+
+          this.addBotMessage(fullText);
+          this.stage = 'rateAnswer';
+        },
+        error: () => {
+          this.isWaitingForModel = false;
+          this.stage = 'askQuestion';
+          this.addBotMessage(
+            'Не получилось получить ответ от ИИ-модели. Попробуй задать вопрос ещё раз чуть позже.',
+          );
+        },
       });
   }
 
@@ -360,6 +453,7 @@ export class ChatPopupComponent implements OnInit {
     }
     this.feedbackClick.emit();
   }
+
   private scheduleScrollToBottom(): void {
     // даём Angular обновить DOM
     setTimeout(() => this.scrollToBottom(), 0);

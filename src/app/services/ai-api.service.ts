@@ -40,21 +40,21 @@ export class AiApiService {
    * classifier: отправляем текст и получаем категории.
    * Тип ответа оставляю any, чтобы не наврать — можно посмотреть в консоли и типизировать.
    */
-classify(text: string): Observable<any | null> {
-  const headers = new HttpHeaders({
-    'Content-Type': 'application/json',
-    'Authorization': `Bearer ${this.CLASSIFIER_TOKEN}`,
-  });
+  classify(text: string): Observable<any | null> {
+    const headers = new HttpHeaders({
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${this.CLASSIFIER_TOKEN}`,
+    });
 
-  const body = { text };
+    const body = { text };
 
-  return this.http.post<any>(this.CLASSIFIER_URL, body, { headers }).pipe(
-    catchError((err) => {
-      console.error('Ошибка classifier', err);
-      return of(null);
-    }),
-  );
-}
+    return this.http.post<any>(this.CLASSIFIER_URL, body, { headers }).pipe(
+      catchError((err) => {
+        console.error('Ошибка classifier', err);
+        return of(null);
+      }),
+    );
+  }
 
 
   /**
