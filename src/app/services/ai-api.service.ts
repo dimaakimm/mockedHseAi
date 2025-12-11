@@ -25,7 +25,7 @@ interface RagRawResponse {
 })
 export class AiApiService {
   // === classifier ===
-  private readonly CLASSIFIER_URL = 'http://46.229.141.86:44456/predict';
+  private readonly CLASSIFIER_URL = 'https://api.hse-ai.ru/predict';
   private readonly CLASSIFIER_TOKEN =
     '496d41cce2ec6a77f1bb7e1afc70c50b5636443c686b1da46bdb760f7fb7e3e4';
 
