@@ -124,7 +124,8 @@
 }
 
 .chat-popup__header-actions {
-  display: flex;
+  display: grid;
+  grid-template-columns: 1fr 1fr max-content;
   align-items: center;
   gap: 6px;
 }
@@ -132,7 +133,6 @@
 .chat-popup__link {
   border: none;
   background: none;
-  padding: 4px 6px;
   font-size: 11px;
   color: #4b5563;
   text-decoration: underline;
@@ -151,20 +151,21 @@
 
 .chat-popup__close {
   border: none;
-  background: none;
   padding: 4px;
   font-size: 14px;
   color: #9ca3af;
   cursor: pointer;
-  border-radius: 999px;
+  border-radius: 10px;
+  background-color: #111827;
+  width: 30px;
+  height: 30px;
   transition:
     background 0.15s ease,
     color 0.15s ease;
 }
 
 .chat-popup__close:hover {
-  background: #e5e7eb;
-  color: #4b5563;
+  opacity: 0.8;
 }
 
 /* === ТЕЛО === */
@@ -256,6 +257,7 @@
   font-size: 13px;
   line-height: 1.4;
   word-wrap: break-word;
+  white-space: pre-line;
 }
 
 .chat-message--bot .chat-message__bubble {

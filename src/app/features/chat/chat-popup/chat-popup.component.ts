@@ -435,14 +435,13 @@ export class ChatPopupComponent implements OnInit {
           }
 
           // 1) отдельное сообщение с ответом + "Подробнее"
-          const parts: string[] = [];
-          parts.push(normalized);
+          let answerBlock = normalized;
 
           if (links.length) {
-            parts.push('', 'Подробнее:', links.join(', '));
+            // пустая строка перед "Подробнее:"
+            answerBlock += '\n\nПодробнее: ' + links.join(', ');
           }
 
-          const answerBlock = parts.join('\n');
           this.addBotMessage(answerBlock);
 
           // 2) отдельное сообщение с вопросом про удовлетворённость

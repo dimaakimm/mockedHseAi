@@ -1,14 +1,16 @@
 <div class="chat-widget">
   <!-- Кнопка открытия чата -->
-  <button
-    type="button"
-    class="chat-widget__toggle"
-    (click)="toggleOpen()"
-    aria-label="Открыть чат-помощник Вышки"
-  >
-    <span class="chat-widget__toggle-icon">💬</span>
-    <span class="chat-widget__toggle-label">Задать вопрос</span>
-  </button>
+  @if (!isOpen) {
+    <button
+      type="button"
+      class="chat-widget__toggle"
+      (click)="toggleOpen()"
+      aria-label="Открыть чат-помощник Вышки"
+    >
+      <span class="chat-widget__toggle-icon">💬</span>
+      <span class="chat-widget__toggle-label">Задать вопрос</span>
+    </button>
+  }
 
   @if (isOpen) {
     <section class="chat-popup" aria-label="Чат-помощник ВШЭ">
