@@ -31,6 +31,30 @@ interface ChatMessage {
   timestamp?: string;
 }
 
+// все доступные категории для ручного выбора
+const ALL_CATEGORIES: string[] = [
+  'Учебный процесс',
+  'Безопасность',
+  'Наука',
+  'Практическая подготовка',
+  'Перемещения студентов / Изменения статусов студентов',
+  'ГИА',
+  'Траектории обучения',
+  'Английский язык',
+  'Цифровые компетенции',
+  'Онлайн-обучение',
+  'Дополнительное образование',
+  'ОВЗ',
+  'Выпускникам',
+  'ВУЦ',
+  'Внеучебка',
+  'Социальные вопросы',
+  'Общежития',
+  'Цифровые системы',
+  'Деньги',
+  'Обратная связь',
+];
+
 @Component({
   selector: 'app-chat-popup',
   standalone: true,
@@ -70,19 +94,12 @@ export class ChatPopupComponent implements OnInit {
   currentInput = '';
 
   currentQuestion = '';
-  currentCategory = '';
-  currentSubcategory = '';
-  availableSections: string[] = [];
+  currentCategory: string = ''; // только одна категория, без подкатегорий
+  /** список категорий для ручного выбора, используется в шаблоне */
+  readonly manualCategories: string[] = ALL_CATEGORIES;
 
   /** "сырые" данные классификатора (что вернул AiApiService.classify) */
   private questionFiltersRaw: any | null = null;
-
-  private readonly categorySections: Record<string, string[]> = {
-    Обучение: ['Учебный план', 'Расписание', 'Сессия и экзамены', 'Практики и стажировки'],
-    Поступление: ['Приёмная комиссия', 'Документы', 'Конкурс и баллы'],
-    Финансы: ['Оплата обучения', 'Стипендии', 'Льготы'],
-    Другое: ['Общий вопрос'],
-  };
 
   constructor(private aiApi: AiApiService) {}
 
@@ -151,8 +168,6 @@ export class ChatPopupComponent implements OnInit {
     this.currentInput = '';
     this.currentQuestion = '';
     this.currentCategory = '';
-    this.currentSubcategory = '';
-    this.availableSections = [];
     this.questionFiltersRaw = null;
 
     this.messages = [];
@@ -219,44 +234,74 @@ export class ChatPopupComponent implements OnInit {
     this.callModel();
   }
 
-  // ---------- classifier (п.1.2–2) через AiApiService ----------
+  // ---------- classifier: новая логика ----------
 
   private callClassifier(question: string): void {
-    this.stage = 'chooseCategory';
+    this.aiApi.classify(question).subscribe({
+      next: (res: any) => {
+        this.questionFiltersRaw = res;
 
-    this.aiApi.classify(question).subscribe((res) => {
-      this.questionFiltersRaw = res;
-
-      let category = 'Другое';
-
-      if (res && typeof res === 'object') {
-        if ('predicted_category' in res && typeof (res as any).predicted_category === 'string') {
-          category = (res as any).predicted_category;
-        } else if ('category' in res && typeof (res as any).category === 'string') {
-          category = (res as any).category;
+        const isInappropriate = res?.is_inappropriate === true;
+        if (isInappropriate) {
+          // Вопрос неподходящий — просим задать заново
+          this.addBotMessage(
+            'Похоже, вопрос сформулирован некорректно или не относится к учебным процессам Вышки. ' +
+              'Пожалуйста, переформулируй вопрос и попробуй ещё раз.',
+          );
+          this.stage = 'askQuestion';
+          return;
         }
-      }
 
-      this.currentCategory = category;
-      this.availableSections = this.categorySections[category] ?? this.categorySections['Другое'];
+        const predictedCategory: string | undefined = res?.predicted_category;
+        const confidence: number = typeof res?.confidence === 'number' ? res.confidence : 0;
 
-      this.addBotMessage(`Категория твоего вопроса: ${category}. Выбери нужный раздел.`);
+        if (predictedCategory && confidence > 0) {
+          // Модель уверена — просто сообщаем категорию и сразу идём в RAG
+          this.currentCategory = predictedCategory;
+          this.addBotMessage(`Категория твоего вопроса: ${this.currentCategory}.`);
+          this.callModel();
+        } else {
+          // confidence == 0 или нет категории — просим выбрать руками
+          this.stage = 'chooseCategory';
+          this.addBotMessage(
+            'Я не смог автоматически определить категорию твоего вопроса. ' +
+              'Пожалуйста, выбери подходящую категорию из списка ниже.',
+          );
+        }
+      },
+      error: () => {
+        this.addBotMessage(
+          'Не получилось определить категорию вопроса. Попробуй задать его ещё раз чуть позже.',
+        );
+        this.stage = 'askQuestion';
+      },
     });
   }
 
-  // ---------- выбор подкатегории (п.2) ----------
+  /** Пользователь вручную выбрал категорию, когда confidence = 0 */
+  onCategorySelect(category: string): void {
+    this.currentCategory = category;
 
-  onSectionSelect(section: string): void {
-    this.currentSubcategory = section;
+    // В questionFiltersRaw прокидываем выбранную категорию,
+    // чтобы RAG мог её использовать как фильтр
+    if (this.questionFiltersRaw && typeof this.questionFiltersRaw === 'object') {
+      (this.questionFiltersRaw as any).predicted_category = category;
+      if (typeof (this.questionFiltersRaw as any).confidence !== 'number') {
+        (this.questionFiltersRaw as any).confidence = 0;
+      }
+    } else {
+      this.questionFiltersRaw = {
+        predicted_category: category,
+        confidence: 0,
+      };
+    }
 
-    this.addBotMessage(
-      `Категория твоего вопроса: ${this.currentCategory}. Подкатегория: ${this.currentSubcategory}.`,
-    );
-
+    this.addBotMessage(`Категория твоего вопроса: ${category}.`);
+    this.stage = 'askQuestion';
     this.callModel();
   }
 
-  // ---------- парсинг FINAL ANSWER + ссылок ----------
+  // ---------- парсинг FINAL ANSWER + ссылки из RAG-ответа ----------
 
   private extractFinalAnswerFromResponse(response: any): {
     answer: string | null;
@@ -268,7 +313,7 @@ export class ChatPopupComponent implements OnInit {
 
     let raw: string | null = null;
 
-    // Вариант 1: пришёл сырой RAG-ответ с outputs (как в твоём примере)
+    // Вариант 1: сырой RAG-ответ с outputs
     if (Array.isArray(response.outputs)) {
       const answerOutput = response.outputs.find((o: any) => o && o.name === 'answer');
       if (answerOutput && answerOutput.data != null) {
@@ -276,7 +321,7 @@ export class ChatPopupComponent implements OnInit {
       }
     }
 
-    // Вариант 2: сервис уже завернул ответ и положил строку в res.answer
+    // Вариант 2: вдруг сервис уже положил строку в response.answer
     if (!raw && typeof response.answer === 'string') {
       raw = response.answer;
     }
@@ -288,7 +333,10 @@ export class ChatPopupComponent implements OnInit {
     return this.extractFinalAnswerFromString(raw);
   }
 
-  private extractFinalAnswerFromString(raw: string): { answer: string; links: string[] } {
+  private extractFinalAnswerFromString(raw: string): {
+    answer: string;
+    links: string[];
+  } {
     // Превратим "\n" в настоящие переносы строк
     const unescaped = raw.replace(/\\n/g, '\n');
 
@@ -299,14 +347,14 @@ export class ChatPopupComponent implements OnInit {
     if (idx !== -1) {
       let rest = unescaped.slice(idx + prefix.length).trim();
 
-      // В твоём формате после ответа идёт "', ['https://...']"
+      // После ответа в твоём формате идёт "', ['https://...']"
       const endMarker = "', [";
       const endIdx = rest.indexOf(endMarker);
       if (endIdx !== -1) {
         rest = rest.slice(0, endIdx);
       }
 
-      // На всякий случай уберём внешние одиночные кавычки
+      // На всякий случай уберём внешние одинарные кавычки
       if (rest.startsWith("'") && rest.endsWith("'")) {
         rest = rest.slice(1, -1);
       }
@@ -324,11 +372,13 @@ export class ChatPopupComponent implements OnInit {
     return { answer, links };
   }
 
-  // ---------- запрос к ИИ (п.3–5) ----------
+  // ---------- запрос к ИИ (RAG, п.3–5) ----------
 
   private callModel(): void {
-    // тут можешь оставить свою проверку профиля как было — я не трогаю
-    if (!(this.userProfile.campus && this.userProfile.level)) {
+    const { campus, level } = this.userProfile || {};
+
+    // Требуем только кампус и уровень образования
+    if (!(campus && level)) {
       this.addBotMessage(
         'Не удалось получить данные о пользователе (кампус и уровень образования). ' +
           'Пожалуйста, заполни параметры пользователя и попробуй снова.',
@@ -352,11 +402,9 @@ export class ChatPopupComponent implements OnInit {
         next: (res: any) => {
           this.isWaitingForModel = false;
 
-          // Ключевая строка – вытащим FINAL ANSWER и ссылки из того, что реально пришло
           const { answer, links } = this.extractFinalAnswerFromResponse(res);
 
           const parts: string[] = [];
-
           parts.push((answer && answer.trim()) || 'Кажется, ответ не получен от ИИ-модели.');
 
           if (links.length) {

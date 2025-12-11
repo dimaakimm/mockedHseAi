@@ -96,26 +96,28 @@
             }
           </div>
 
-          <!-- Панель выбора подкатегории (п.2) -->
+          <!-- Панель выбора категории, когда confidence = 0 -->
           @if (stage === 'chooseCategory') {
             <section class="chat-popup__panel">
               <p class="chat-popup__panel-title">
-                Категория твоего вопроса:
-                <strong>{{ currentCategory }}</strong>. Выбери нужный раздел:
+                Я не смог автоматически определить категорию твоего вопроса.
+                Пожалуйста, выбери подходящую категорию:
               </p>
               <div class="chat-popup__buttons-row">
-                @for (section of availableSections; track section) {
+                @for (category of manualCategories; track category) {
                   <button
                     type="button"
                     class="chip-button"
-                    (click)="onSectionSelect(section)"
+                    (click)="onCategorySelect(category)"
                   >
-                    {{ section }}
+                    {{ category }}
                   </button>
                 }
               </div>
             </section>
           }
+
+
 
           <!-- Панель "Удовлетворен ли ответом?" (п.5) -->
           @if (stage === 'rateAnswer') {
