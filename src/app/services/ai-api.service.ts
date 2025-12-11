@@ -40,17 +40,22 @@ export class AiApiService {
    * classifier: отправляем текст и получаем категории.
    * Тип ответа оставляю any, чтобы не наврать — можно посмотреть в консоли и типизировать.
    */
-  classify(text: string): Observable<any | null> {
-    const url = `${this.CLASSIFIER_URL}?token=${this.CLASSIFIER_TOKEN}`;
-    const body = { text };
+classify(text: string): Observable<any | null> {
+  const headers = new HttpHeaders({
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${this.CLASSIFIER_TOKEN}`,
+  });
 
-    return this.http.post<any>(url, body).pipe(
-      catchError((err) => {
-        console.error('Ошибка classifier', err);
-        return of(null); // если classifier упал — просто вернём null и пойдём дальше
-      }),
-    );
-  }
+  const body = { text };
+
+  return this.http.post<any>(this.CLASSIFIER_URL, body, { headers }).pipe(
+    catchError((err) => {
+      console.error('Ошибка classifier', err);
+      return of(null);
+    }),
+  );
+}
+
 
   /**
    * Чистый запрос к RAG (predict).
