@@ -18,7 +18,7 @@ export class AppComponent {
   };
 
   // ссылка на форму обратной связи (если нужна)
-  feedbackUrl = 'https://forms.yandex.ru/your-feedback-form/'; // поставь свою
+  feedbackUrl = 'https://forms.yandex.ru/cloud/688626ebeb614611471b4c22';
 
   // если захочешь ловить изменения профиля из чата
   onUserProfileChange(profile: UserProfile): void {
