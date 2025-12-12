@@ -66,7 +66,7 @@
               >
                 <!-- Аватар только для сообщений бота -->
                 @if (message.role === 'bot') {
-                  @if (i === 0 || messages[i - 1]?.role !== 'bot') {
+                  @if (i === 0 || messages[i - 1].role !== 'bot') {
                     <!-- Первое сообщение в последовательности бота — нормальный аватар -->
                     <div class="chat-message__avatar">
             <span class="chat-message__avatar-icon">
@@ -85,7 +85,7 @@
                        - только для первого сообщения бота в последовательности -->
                   @if (
                     message.role === 'user' ||
-                    (message.role === 'bot' && (i === 0 || messages[i - 1]?.role !== 'bot'))
+                    (message.role === 'bot' && (i === 0 || messages[i - 1].role !== 'bot'))
                     ) {
                     <header class="chat-message__meta">
             <span class="chat-message__author">

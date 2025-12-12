@@ -20,6 +20,6 @@ button { cursor: pointer;}
 }
 
 a{
-  color: #2563eb; // спокойный синий
+  color: #2563eb;
   word-break: break-all;
 }
