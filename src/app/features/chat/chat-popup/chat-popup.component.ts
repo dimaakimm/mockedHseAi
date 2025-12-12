@@ -166,7 +166,7 @@ export class ChatPopupComponent implements OnInit {
 
   // ---------- стартовое состояние ----------
 
-  private toStartState(): void {
+  private toStartState(clearMessages: boolean = true): void {
     this.viewMode = 'chat';
     this.stage = 'askQuestion';
     this.isWaitingForModel = false;
@@ -175,10 +175,12 @@ export class ChatPopupComponent implements OnInit {
     this.currentCategory = '';
     this.questionFiltersRaw = null;
 
-    this.messages = [];
-    this.addBotMessage(
-      'Я бот, созданный для помощи по учебным процессам Вышки! Какой у тебя вопрос?',
-    );
+    if (clearMessages || this.messages.length === 0) {
+      this.messages = [];
+      this.addBotMessage(
+        'Я бот, созданный для помощи по учебным процессам Вышки! Какой у тебя вопрос?',
+      );
+    }
   }
 
   // ---------- сообщения ----------
@@ -362,7 +364,9 @@ export class ChatPopupComponent implements OnInit {
     let answer = '';
 
     const idx = unescaped.indexOf(prefix);
+
     if (idx !== -1) {
+      // Классический формат с FINAL ANSWER
       let rest = unescaped.slice(idx + prefix.length).trim();
 
       // После ответа в твоём формате идёт "', ['https://...']"
@@ -379,15 +383,36 @@ export class ChatPopupComponent implements OnInit {
 
       answer = rest.trim();
     } else {
-      // Фоллбек: если вдруг нет FINAL ANSWER, берём всю строку
-      answer = unescaped.trim();
+      // Формат без FINAL ANSWER, но с виду как:
+      // ['ТЕКСТ ОТВЕТА', ['https://link1', 'https://link2']]
+      let tmp = unescaped.trim();
+      const marker = "', [";
+      const markerIdx = tmp.indexOf(marker);
+
+      if (tmp.startsWith("['") && markerIdx !== -1) {
+        // Вырезаем всё между [' и ', [
+        answer = tmp.slice(2, markerIdx).trim();
+      } else {
+        // Фоллбек — берём всю строку
+        answer = tmp;
+      }
     }
 
-    // Вытаскиваем все URL-ы из того же текста
+    // Вытаскиваем все URL-ы из исходного текста
     const urlRegex = /https?:\/\/[^\s'"]+/g;
     const links = Array.from(new Set(unescaped.match(urlRegex) ?? []));
 
     return { answer, links };
+  }
+
+  private escapeHtml(text: string): string {
+    if (text == null) return '';
+    return text
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
   }
 
   // ---------- запрос к ИИ (RAG) ----------
@@ -434,12 +459,37 @@ export class ChatPopupComponent implements OnInit {
             return;
           }
 
-          // 1) отдельное сообщение с ответом + "Подробнее"
+          // ====== НОВАЯ ЛОГИКА ДЛЯ "Я не могу обсуждать..." ======
+          const moderationPhrases = [
+            'Я не могу обсуждать эту тему',
+            'Мне кажется, неуместно здесь это обсуждать',
+          ];
+
+          const containsModerationBlock = moderationPhrases.some((phrase) =>
+            normalized.includes(phrase),
+          );
+
+          if (containsModerationBlock) {
+            // 1) показываем текст ответа модели
+            this.addBotMessage(normalized);
+
+            // 2) предлагаем задать другой вопрос
+            this.addBotMessage(
+              'Ты можешь задать другой вопрос, связанный с учебными процессами Вышки.',
+            );
+
+            // 3) возвращаемся к режиму "задать новый вопрос"
+            this.stage = 'askQuestion';
+            return;
+          }
+          // ====== КОНЕЦ НОВОЙ ЛОГИКИ ======
+
+          // 1) отдельное сообщение с ответом + ссылки
           let answerBlock = normalized;
 
           if (links.length) {
-            // пустая строка перед "Подробнее:"
-            answerBlock += '\n\nПодробнее: ' + links.join(', ');
+            // пустая строка перед блоком ссылок
+            answerBlock += '\n\nУпоминается в ссылках ниже:\n' + links.join('\n');
           }
 
           this.addBotMessage(answerBlock);
@@ -459,8 +509,10 @@ export class ChatPopupComponent implements OnInit {
   onRate(isSatisfied: boolean): void {
     if (isSatisfied) {
       this.addUserMessage('Да, удовлетворен');
-      this.addBotMessage('Спасибо за оценку.');
-      this.toStartState();
+      this.addBotMessage('Спасибо за оценку. Можешь задать новый вопрос');
+
+      // начинаем новый вопрос, но историю НЕ стираем
+      this.toStartState(false);
     } else {
       this.addUserMessage('Нет, не удовлетворен');
       this.stage = 'afterNegative';
@@ -475,8 +527,8 @@ export class ChatPopupComponent implements OnInit {
   }
 
   onAskNew(): void {
-    this.addBotMessage('Спасибо за оценку.');
-    this.toStartState();
+    this.addBotMessage('Спасибо за оценку. Можешь задать новый вопрос');
+    this.toStartState(false);
   }
 
   // ---------- режим редактирования профиля ----------

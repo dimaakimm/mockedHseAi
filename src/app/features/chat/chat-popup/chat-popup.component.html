@@ -99,9 +99,7 @@
                     </header>
                   }
 
-                  <p class="chat-message__bubble">
-                    {{ message.text }}
-                  </p>
+                  <p class="chat-message__bubble" [innerHTML]="message.text"></p>
                 </div>
               </article>
             }
